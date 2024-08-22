@@ -1,6 +1,6 @@
 import gradio as gr
 from src.appconfig import load_config, save_config
-from src.twitter_util import validate_cron_expression
+from src.util import validate_cron_expression
 
 
 def cron_manage():

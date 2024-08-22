@@ -5,7 +5,8 @@ from datetime import datetime
 import gradio as gr
 from openai import OpenAI
 
-from src.appconfig import load_config
+from src.appconfig import load_access_token, load_config, load_consumer_token
+from src.tweet_util import post_tweet, upload_image_to_twitter
 
 UPLOAD_FOLDER = "uploaded_images"
 if not os.path.exists(UPLOAD_FOLDER):
@@ -23,6 +24,10 @@ c.execute(
               published_at TIMESTAMP,
               status TEXT)"""
 )
+
+STATUS_PENDING = "Pending"
+STATUS_PUBLISHED = "Published"
+STATUS_DELETED = "Deleted"
 
 
 def getOpenAIClient():
@@ -52,11 +57,41 @@ def save_tweet(tweet_content, image):
 
     c.execute(
         "INSERT INTO tweets (content, image_path, created_at, status) VALUES (?, ?, ?, ?)",
-        (tweet_content, image_path, datetime.now(), "待发布"),
+        (tweet_content, image_path, datetime.now(), STATUS_PENDING),
     )
     conn.commit()
 
     return "Tweet已成功保存!", get_tweets()
+
+
+def publish_tweet():
+    c.execute(
+        "SELECT id, content, image_path FROM tweets WHERE status = ? LIMIT 1",
+        (STATUS_PENDING,),
+    )
+    tweet = c.fetchone()
+    if tweet:
+        id, content, image_path = tweet
+        ckey, csecret = load_consumer_token()
+        akey, asecret = load_access_token()
+        if not (ckey and csecret and akey and asecret):
+            raise Exception("请先设置OpenAI API Key和Access Token")
+
+        if image_path:
+            absolute_path = os.path.abspath(image_path)
+            media_id = upload_image_to_twitter(
+                ckey, csecret, akey, asecret, absolute_path
+            )
+            post_tweet(ckey, csecret, akey, asecret, content, media_id)
+        else:
+            post_tweet(ckey, csecret, akey, asecret, content)
+        c.execute(
+            "UPDATE tweets SET status = ?, published_at = ? WHERE id = ?",
+            (STATUS_PUBLISHED, datetime.now(), id),
+        )
+        conn.commit()
+        return f"Tweet发布成功, ID: {id}", get_tweets()
+    return "当前无Tweet待发布", get_tweets()
 
 
 def get_tweets():
@@ -70,7 +105,7 @@ def get_tweets():
             tweet[1],
             tweet[2] if tweet[2] else "无图片",
             tweet[3],
-            tweet[4] if tweet[4] else "未发布",
+            tweet[4] if tweet[4] else "",
             tweet[5],
         ]
         for tweet in tweets
@@ -96,7 +131,6 @@ def generate_tweet(idea):
 
 def tweet_manage():
     with gr.Blocks() as demo:
-        gr.Markdown("# 定时发送Tweet工具")
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Row():
@@ -108,6 +142,7 @@ def tweet_manage():
                 result = gr.Textbox(label="结果")
 
             with gr.Column(scale=2):
+                publish_btn = gr.Button("按顺序发布")
                 tweet_list = gr.Dataframe(
                     headers=[
                         "序号",
@@ -120,6 +155,11 @@ def tweet_manage():
                     datatype=["number", "str", "str", "str", "str", "str"],
                     label="已提交的Tweets",
                     value=get_tweets(),
+                    interactive=False,
+                )
+                publish_result = gr.Textbox(label="发布结果")
+                publish_btn.click(
+                    publish_tweet, inputs=None, outputs=[publish_result, tweet_list]
                 )
 
         def update_tweet_content(idea):

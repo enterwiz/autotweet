@@ -10,6 +10,7 @@ python = "^3.12"
 python-twitter-v2 = "^0.9.1"
 gradio = "^4.42.0"
 openai = "^1.42.0"
+requests-oauthlib = "^2.0.0"
 
 
 [build-system]
