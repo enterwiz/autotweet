@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "autotweet"
+version = "0.1.0"
+description = ""
+authors = ["enterwiz <enterwizdev@outlook.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+python-twitter-v2 = "^0.9.1"
+gradio = "^4.42.0"
+openai = "^1.42.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
