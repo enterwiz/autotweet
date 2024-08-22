@@ -4,6 +4,8 @@ Help you manage your tweets automatically.
 
 Generate, queue, cron, then take a cup of coffee. AutoTweet will do all the other things.
 
+![dashboard.png](./assets/dashboard.png)
+
 ## Pre
 
 - Get an OpenAI/Deepseek API Key (If you use AI generate tweets).
